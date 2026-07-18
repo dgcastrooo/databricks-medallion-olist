@@ -1,0 +1,22 @@
+# dados brutos (Olist) — nunca versionar dado no git
+data/*
+!data/README.md
+
+# segredos / credenciais
+*.env
+.env
+*.pem
+*secret*
+*credential*
+
+# python
+.venv/
+__pycache__/
+*.pyc
+
+# databricks / notebooks locais
+.databricks/
+
+# sistema
+.DS_Store
+Thumbs.db
