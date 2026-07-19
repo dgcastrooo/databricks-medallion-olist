@@ -78,3 +78,27 @@ Documento de estudo do projeto — o *porquê* de cada escolha, as etapas, os pe
 **Conceitos-chave (entrevista):** camada bronze = cru + imutável + rastreável; Delta dá ACID sobre o lake; serverless × cluster all-purpose × job cluster.
 
 **Resumo de entrevista:** *"Na bronze só materializo o cru como Delta, com metadados de ingestão pra rastreabilidade, sem transformar nada — assim tenho ACID e time travel sobre o dado original e posso sempre reprocessar a partir dele."*
+
+---
+
+## Fase 4 — Silver
+
+**Objetivo:** dado **confiável** — tipar, padronizar, deduplicar e **validar** (quarentena).
+
+**Regras de limpeza (transformação, valem pra toda linha):**
+- CEP → texto com `lpad` 5 (recupera zero à esquerda; lido como int o CEP `01310` virava `1310`).
+- `geolocation` → 1 linha por CEP (1M → ~19k): lat/lng médios, city/state por moda (`F.mode`).
+- `order_reviews` → dedup `review_id` ficando o mais recente (window `row_number`).
+- `products` → corrige typos de coluna (`lenght`→`length`), contadores viram `int`.
+- Geral: datas → `timestamp`, valores → `decimal(10,2)`, `trim`, `state` em maiúsculo.
+
+**Quarentena (validação — separa o que não dá pra confiar):** conceito diferente da limpeza. Cada tabela → válidos em `olist.silver.<t>`, reprovados em `olist.silver.<t>_quarantine` com `_motivo_quarentena`. Regras: chave natural nula, `review_score` fora de 1..5, valores monetários negativos, data crítica ausente. No Olist (limpo) pega ~0 — é engenharia defensiva + demonstração do padrão.
+
+**Perrengues resolvidos (ótimos pra entrevista):**
+- **CSV multi-linha:** comentários de review têm quebra de linha/vírgula; sem `multiLine=True` + `escape='"'` no bronze, o texto vazava pra colunas erradas (um comentário caiu numa coluna de data). Corrigido na leitura do bronze.
+- **`to_timestamp` estoura vs `try_to_timestamp`:** cast normal quebra o job em valor malformado (modo ANSI); `try_to_timestamp` devolve `null` — a linha vai pra quarentena em vez de derrubar tudo.
+- **`overwriteSchema`:** reingerir com schema inferido diferente exige `option("overwriteSchema","true")` no overwrite Delta.
+
+**Onde o dado mora (managed tables):** UC guarda os arquivos em `abfss://<container>/__unitystorage/.../tables/<guid>/` — GUID em vez de nome (renomear não move arquivo; abstração/segurança). Dentro: `_delta_log/` (transaction log) + `.parquet`. Navega por nome no Catalog Explorer, não no storage.
+
+**Resumo de entrevista:** *"Na silver eu tipo, padronizo e deduplico, e separo o que falha validação numa tabela de quarentena com o motivo — assim o pipeline não quebra com dado ruim nem o contamina. Peguei um caso real de CSV multi-linha corrompendo colunas e resolvi na leitura, e deixei os casts tolerantes com try_to_timestamp."*

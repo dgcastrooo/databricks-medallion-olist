@@ -43,7 +43,7 @@ Olist (OLTP normalizado)
 - [x] Fase 1 — infra (ADLS Gen2, workspace, Unity Catalog)
 - [x] Fase 2 — dados de origem (Olist)
 - [x] Fase 3 — bronze
-- [ ] Fase 4 — silver
+- [x] Fase 4 — silver
 - [ ] Fase 5 — gold (star schema)
 - [ ] Fase 6 — orquestração + governança
 - [ ] Fase 7 — dashboard
