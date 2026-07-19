@@ -48,3 +48,16 @@ Olist (OLTP normalizado)
 - [x] Fase 6 — orquestração + governança
 - [ ] Fase 7 — dashboard
 - [ ] Fase 8 — documentação final
+
+## Notas sobre os dados (Olist)
+
+O dataset reflete a história real do marketplace — importante ao ler o dashboard. Os gráficos mostram a série **completa, sem recorte** (transparência); os KPIs de total usam todo o dataset.
+
+- **set/2016:** só 4 pedidos.
+- **out/2016:** "burst" de ~324 pedidos concentrado em 3–10/out (lançamento-piloto).
+- **nov/2016:** nenhum pedido.
+- **dez/2016:** 1 pedido isolado (R$ 10,90).
+- **jan/2017 em diante:** operação real, crescendo até ~7,5k pedidos/mês (pico em nov/2017).
+- **set–out/2018:** queda abrupta (16 e 4 pedidos) — é o **corte da extração** do dataset, não queda de vendas.
+
+**Validação:** as contagens batem com a fonte (**99.441 pedidos / 112.650 itens**) e com EDAs públicas do dataset (~329 pedidos em 2016). Ou seja, o pipeline é fiel à origem — o "estranho" é o negócio real.
