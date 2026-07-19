@@ -61,3 +61,20 @@ Documento de estudo do projeto — o *porquê* de cada escolha, as etapas, os pe
 - **Volume:** 9 CSVs, ~124 MB; o `geolocation` sozinho tem 61 MB — volume que já justifica processamento distribuído (Spark).
 
 **Resumo de entrevista:** *"Ingeri o dado de origem via API versionada num script, aterrissando os arquivos crus numa zona raw do bronze — preservando o dado original antes de qualquer transformação, que é o princípio da camada bronze."*
+
+---
+
+## Fase 3 — Bronze
+
+**Objetivo:** transformar os CSVs crus em tabelas Delta, **sem limpeza** — só ganhar ACID/schema/time travel e preservar o cru.
+
+**Decisões e aprendizados:**
+- **Uma tabela Delta por CSV** (9), em `olist.bronze`, gerenciadas pelo UC.
+- **Metadados de ingestão:** adiciono `_ingestion_ts` (quando entrou) e `_source_file` (de onde veio) — rastreabilidade, padrão de bronze.
+- **`inferSchema=True` na bronze:** conveniência; a tipagem explícita fica pra silver. *Trade-off honesto:* inferir faz o Spark ler os dados duas vezes; em produção com dado gigante, muitos leem tudo como string na bronze e tipam na silver. Pra este volume, inferir é ok.
+- **Workflow com Git folders:** notebooks vivem no GitHub, versionados; no Databricks a gente dá **Pull** e roda. Eu escrevo/commito/**pusho** local → Pull no Databricks. (Aprendi na marra: commit sem push não chega no clone.)
+- **Compute — serverless vs cluster clássico:** criei um cluster single-node (com auto-terminate 15min) e aprendi a anatomia (driver/executor, all-purpose × job, Photon). Mas o workspace tem **serverless para notebook** — liga/desliga na hora, sem idle burn — então rodei no serverless (melhor pro perfil de custo deste projeto). Fico sabendo os dois: cluster clássico é o que grande parte das empresas usa pra Spark pesado; serverless é o simples/econômico aqui.
+
+**Conceitos-chave (entrevista):** camada bronze = cru + imutável + rastreável; Delta dá ACID sobre o lake; serverless × cluster all-purpose × job cluster.
+
+**Resumo de entrevista:** *"Na bronze só materializo o cru como Delta, com metadados de ingestão pra rastreabilidade, sem transformar nada — assim tenho ACID e time travel sobre o dado original e posso sempre reprocessar a partir dele."*
