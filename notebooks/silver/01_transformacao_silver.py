@@ -188,6 +188,7 @@ category_translation = (
     spark.table("olist.bronze.category_translation")
     .withColumn("product_category_name", F.lower(F.trim("product_category_name")))
     .withColumn("product_category_name_english", F.lower(F.trim("product_category_name_english")))
+    .select("product_category_name", "product_category_name_english")   # só colunas de negócio (consistência)
     .dropDuplicates(["product_category_name"])
 )
 motivo = F.when(F.col("product_category_name").isNull(), "categoria nula").otherwise(NADA)
