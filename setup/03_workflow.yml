@@ -1,0 +1,30 @@
+# Orquestração — definição declarativa do job medallion-olist-pipeline
+# (formato Databricks Asset Bundle). Encadeia bronze -> silver -> gold, tudo serverless.
+#
+# O job foi criado/executado no workspace (Jobs & Pipelines). Este arquivo é a versão
+# versionada/reproduzível dele. Pra fazer deploy por código:
+#   databricks bundle deploy      (requer databricks CLI autenticado no workspace)
+
+bundle:
+  name: databricks-medallion-olist
+
+resources:
+  jobs:
+    medallion_olist_pipeline:
+      name: medallion-olist-pipeline
+      tasks:
+        - task_key: bronze
+          notebook_task:
+            notebook_path: ../notebooks/bronze/01_ingestao_bronze
+
+        - task_key: silver
+          depends_on:
+            - task_key: bronze          # silver só roda se bronze terminar
+          notebook_task:
+            notebook_path: ../notebooks/silver/01_transformacao_silver
+
+        - task_key: gold
+          depends_on:
+            - task_key: silver          # gold só roda se silver terminar
+          notebook_task:
+            notebook_path: ../notebooks/gold/01_star_schema_gold

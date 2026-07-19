@@ -45,6 +45,6 @@ Olist (OLTP normalizado)
 - [x] Fase 3 — bronze
 - [x] Fase 4 — silver
 - [x] Fase 5 — gold (star schema)
-- [ ] Fase 6 — orquestração + governança
+- [x] Fase 6 — orquestração + governança
 - [ ] Fase 7 — dashboard
 - [ ] Fase 8 — documentação final
