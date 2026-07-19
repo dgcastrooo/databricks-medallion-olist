@@ -30,6 +30,8 @@ for tabela, arquivo in TABELAS.items():
         spark.read
         .option("header", True)
         .option("inferSchema", True)   # bronze infere; tipagem explícita é na silver
+        .option("multiLine", True)     # comentários do olist têm quebra de linha
+        .option("escape", '"')          # aspas dentro de campo entre aspas
         .csv(f"{RAW}/{arquivo}")
         .withColumn("_ingestion_ts", current_timestamp())  # quando entrou
         .withColumn("_source_file", lit(arquivo))           # de onde veio

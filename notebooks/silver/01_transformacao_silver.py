@@ -70,7 +70,7 @@ grava_silver(geolocation, "geolocation", ["geolocation_zip_code_prefix"], motivo
 # COMMAND ----------
 order_items = (
     spark.table("olist.bronze.order_items")
-    .withColumn("shipping_limit_date", F.to_timestamp("shipping_limit_date"))
+    .withColumn("shipping_limit_date", F.try_to_timestamp("shipping_limit_date"))
     .withColumn("price", F.col("price").cast("decimal(10,2)"))
     .withColumn("freight_value", F.col("freight_value").cast("decimal(10,2)"))
     .select("order_id", "order_item_id", "product_id", "seller_id", "shipping_limit_date", "price", "freight_value")
@@ -109,8 +109,8 @@ grava_silver(order_payments, "order_payments", ["order_id", "payment_sequential"
 w_review = Window.partitionBy("review_id").orderBy(F.col("review_answer_timestamp").desc())
 order_reviews = (
     spark.table("olist.bronze.order_reviews")
-    .withColumn("review_creation_date", F.to_timestamp("review_creation_date"))
-    .withColumn("review_answer_timestamp", F.to_timestamp("review_answer_timestamp"))
+    .withColumn("review_creation_date", F.try_to_timestamp("review_creation_date"))
+    .withColumn("review_answer_timestamp", F.try_to_timestamp("review_answer_timestamp"))
     .withColumn("_rn", F.row_number().over(w_review))
     .filter(F.col("_rn") == 1).drop("_rn")
     .select("review_id", "order_id", "review_score", "review_comment_title",
@@ -133,7 +133,7 @@ _date_cols = [
 ]
 orders = spark.table("olist.bronze.orders").withColumn("order_status", F.lower(F.trim("order_status")))
 for c in _date_cols:
-    orders = orders.withColumn(c, F.to_timestamp(c))
+    orders = orders.withColumn(c, F.try_to_timestamp(c))
 orders = orders.select("order_id", "customer_id", "order_status", *_date_cols).dropDuplicates(["order_id"])
 motivo = (
     F.when(F.col("order_id").isNull() | F.col("customer_id").isNull(), "chave nula")
