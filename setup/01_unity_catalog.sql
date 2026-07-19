@@ -21,10 +21,21 @@ CREATE EXTERNAL LOCATION IF NOT EXISTS olist_gold
   COMMENT 'camada gold (star schema)';
 
 -- 2) CATALOG + SCHEMAS: o medallion como estrutura logica no Unity Catalog.
-CREATE CATALOG IF NOT EXISTS olist COMMENT 'lakehouse olist - e-commerce brasileiro';
-CREATE SCHEMA  IF NOT EXISTS olist.bronze COMMENT 'dado cru ingerido';
-CREATE SCHEMA  IF NOT EXISTS olist.silver COMMENT 'dado limpo e tipado';
-CREATE SCHEMA  IF NOT EXISTS olist.gold   COMMENT 'star schema pronto pra BI';
+--    o metastore nao tem storage root (modelo "Default Storage"), entao o catalog
+--    precisa de um MANAGED LOCATION explicito -> apontamos pro NOSSO ADLS Gen2.
+--    catalog usa o container bronze como raiz; silver e gold cada um no seu container.
+CREATE CATALOG IF NOT EXISTS olist
+  MANAGED LOCATION 'abfss://bronze@stmedallionolist.dfs.core.windows.net/'
+  COMMENT 'lakehouse olist - e-commerce brasileiro';
+
+CREATE SCHEMA IF NOT EXISTS olist.bronze
+  COMMENT 'dado cru ingerido';                       -- herda a raiz do catalog (bronze)
+CREATE SCHEMA IF NOT EXISTS olist.silver
+  MANAGED LOCATION 'abfss://silver@stmedallionolist.dfs.core.windows.net/'
+  COMMENT 'dado limpo e tipado';
+CREATE SCHEMA IF NOT EXISTS olist.gold
+  MANAGED LOCATION 'abfss://gold@stmedallionolist.dfs.core.windows.net/'
+  COMMENT 'star schema pronto pra BI';
 
 -- 3) verificacao
 SHOW EXTERNAL LOCATIONS;
