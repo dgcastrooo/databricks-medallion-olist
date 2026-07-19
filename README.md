@@ -41,7 +41,7 @@ Olist (OLTP normalizado)
 
 - [x] Fase 0 — setup (conta, repo, ferramentas)
 - [x] Fase 1 — infra (ADLS Gen2, workspace, Unity Catalog)
-- [ ] Fase 2 — dados de origem (Olist)
+- [x] Fase 2 — dados de origem (Olist)
 - [ ] Fase 3 — bronze
 - [ ] Fase 4 — silver
 - [ ] Fase 5 — gold (star schema)

@@ -47,3 +47,17 @@ Documento de estudo do projeto — o *porquê* de cada escolha, as etapas, os pe
 - **External location vs. managed location:** a primeira governa *acesso* a um caminho; a segunda define *onde* tabelas gerenciadas guardam dado.
 
 **Resumo de entrevista:** *"Montei a governança do jeito enterprise: identidade gerenciada via Access Connector com RBAC no storage, e no Unity Catalog encadeei storage credential → external locations → catalog e schemas, com as managed locations apontando pro meu ADLS Gen2. Assim o dado fica no meu lake e o acesso é 100% governado, sem chave."*
+
+---
+
+## Fase 2 — Dados de origem
+
+**Objetivo:** trazer o dado cru do Olist pra dentro do lake.
+
+**Decisões e aprendizados:**
+- **Via API da Kaggle (não download manual)** — fica um script `setup/02_dados_origem.sh` reproduzível. A Kaggle mudou o formato do token: agora é `KGAT_...` salvo em `~/.kaggle/access_token`, não mais `kaggle.json`. Token é **segredo** — fora do repo, `chmod 600`, nunca no git.
+- **Landing em `bronze/raw/olist/`** — os CSVs crus ficam numa pasta `raw/` do container bronze, separados das futuras tabelas Delta gerenciadas. Dado de origem preservado como veio.
+- **Perrengue do azcopy:** `az storage fs directory upload` depende do azcopy, que não baixou neste ambiente. Contorno: subir arquivo a arquivo com `az storage fs file upload` (usa o SDK Python direto, sem azcopy).
+- **Volume:** 9 CSVs, ~124 MB; o `geolocation` sozinho tem 61 MB — volume que já justifica processamento distribuído (Spark).
+
+**Resumo de entrevista:** *"Ingeri o dado de origem via API versionada num script, aterrissando os arquivos crus numa zona raw do bronze — preservando o dado original antes de qualquer transformação, que é o princípio da camada bronze."*
