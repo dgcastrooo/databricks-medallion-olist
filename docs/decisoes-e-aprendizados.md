@@ -102,3 +102,23 @@ Documento de estudo do projeto — o *porquê* de cada escolha, as etapas, os pe
 **Onde o dado mora (managed tables):** UC guarda os arquivos em `abfss://<container>/__unitystorage/.../tables/<guid>/` — GUID em vez de nome (renomear não move arquivo; abstração/segurança). Dentro: `_delta_log/` (transaction log) + `.parquet`. Navega por nome no Catalog Explorer, não no storage.
 
 **Resumo de entrevista:** *"Na silver eu tipo, padronizo e deduplico, e separo o que falha validação numa tabela de quarentena com o motivo — assim o pipeline não quebra com dado ruim nem o contamina. Peguei um caso real de CSV multi-linha corrompendo colunas e resolvi na leitura, e deixei os casts tolerantes com try_to_timestamp."*
+
+---
+
+## Fase 5 — Gold (star schema)
+
+**Objetivo:** reorganizar a silver (normalizada) num **star schema** pronto pra BI.
+
+**Star × Snowflake:** star = dimensões **desnormalizadas** (achatadas), poucos joins, rápido — padrão pra analytics. Snowflake = dimensões normalizadas em sub-tabelas, mais joins. **Escolhi star**: "colei" a categoria em inglês dentro de `dim_produto` e a geolocalização dentro de `dim_cliente`/`dim_vendedor` (se fossem tabelas à parte apontadas, seria snowflake).
+
+**Modelo:**
+- **Fato `fato_itens_pedido`** — grão = **1 linha por item de pedido** (112.650). Medidas: `preco`, `frete`. FKs pras 5 dimensões + `order_id`/`order_item_id` como chaves degeneradas.
+- **Dimensões:** `dim_cliente`, `dim_produto` (categoria EN via join com translation), `dim_vendedor`, `dim_pedido` (status/datas), `dim_data` (calendário gerado com `sequence` entre a menor e maior data de compra).
+
+**Surrogate keys:** cada dimensão tem uma `sk_*` sequencial (`row_number`), e o fato aponta pra ela em vez da chave natural. Vantagens: join por inteiro (rápido), independência da fonte, base pra SCD futuro. `dim_data` usa `date_key` (`yyyyMMdd`) como SK natural.
+
+**Como o fato é montado:** `order_items` + `orders` (pra pegar `customer_id` e a data da compra) e depois join em cada dimensão (lida de volta do storage, pra SK estável) pra puxar as `sk_*`.
+
+**Qualidade — integridade referencial:** era a decisão de deixar RI pra gold. Depois de montar o fato, contei FKs nulas (= item órfão, apontando pra dimensão inexistente): **0 órfãos em todas** as chaves.
+
+**Resumo de entrevista:** *"Modelei um star schema com fato no grão de item de pedido e cinco dimensões desnormalizadas com surrogate keys. Deixei a checagem de integridade referencial pra gold, na hora dos joins, e validei que não havia órfãos. Escolhi star (não snowflake) porque otimiza leitura pra BI."*
