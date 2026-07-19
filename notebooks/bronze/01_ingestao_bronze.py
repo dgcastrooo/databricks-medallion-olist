@@ -40,6 +40,7 @@ for tabela, arquivo in TABELAS.items():
         df.write
         .format("delta")
         .mode("overwrite")
+        .option("overwriteSchema", "true")   # o schema inferido mudou (multiLine); sobrescreve
         .saveAsTable(f"olist.bronze.{tabela}")
     )
     print(f"olist.bronze.{tabela}: {df.count()} linhas, {len(df.columns)} colunas")
