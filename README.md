@@ -86,6 +86,14 @@ erDiagram
 - **Orquestração idempotente:** um job encadeia as 3 camadas; como cada etapa reescreve sua camada, é seguro reexecutar.
 - **Rigor com o dado:** um número suspeito no dashboard virou uma investigação até a origem — provei que o pipeline era fiel e documentei em vez de recortar a série (ver *Notas sobre os dados*).
 
+**Orquestração** — o Workflow encadeando bronze → silver → gold (serverless, idempotente):
+
+![Databricks Workflow](docs/images/workflow.png)
+
+**Governança** — o catálogo `olist` no Unity Catalog, com os schemas das 3 camadas:
+
+![Unity Catalog](docs/images/catalog.png)
+
 ## 🧭 Decisões de arquitetura
 
 | Decisão | Escolha | Por quê |
