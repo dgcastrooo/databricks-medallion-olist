@@ -1,69 +1,101 @@
-# databricks-medallion-olist
+# 🛒 Lakehouse Medallion na Azure — Olist E-Commerce
 
-Pipeline de dados end-to-end em **arquitetura Medallion** (bronze → silver → gold) sobre o **Azure**, usando **Databricks + Delta Lake + Unity Catalog**, com dados reais de e-commerce brasileiro (dataset Olist).
+> Pipeline de dados **end-to-end** que leva ~100 mil pedidos reais de e-commerce brasileiro do CSV cru até um dashboard de vendas — em arquitetura **Medallion** (bronze → silver → gold) sobre **Azure Databricks**, com governança de verdade no **Unity Catalog**.
 
-> 🚧 Em construção — projeto de portfólio, evoluindo por fases.
+![Azure](https://img.shields.io/badge/Azure-0078D4?logo=microsoftazure&logoColor=white)
+![Databricks](https://img.shields.io/badge/Databricks-FF3621?logo=databricks&logoColor=white)
+![Delta Lake](https://img.shields.io/badge/Delta_Lake-003366?logo=delta&logoColor=white)
+![Spark](https://img.shields.io/badge/PySpark-E25A1C?logo=apachespark&logoColor=white)
+![Unity Catalog](https://img.shields.io/badge/Unity_Catalog-00A1F1)
 
-## Objetivo
+---
 
-Modelar um lakehouse completo a partir de dados transacionais crus (estilo OLTP) até um **star schema** pronto pra consumo em BI — mostrando ingestão, limpeza, modelagem dimensional, orquestração e governança.
+## 🎯 Em uma frase
 
-## Stack
+Peguei um dataset transacional **normalizado** (estilo OLTP) e construí um **lakehouse governado** que o transforma, camada a camada, num **star schema** pronto pra BI — com ingestão, limpeza + quarentena de qualidade, modelagem dimensional, orquestração e um dashboard no fim.
 
-| Camada | Ferramenta |
-|---|---|
-| Data lake | Azure Data Lake Storage Gen2 |
-| Processamento | Azure Databricks (Spark / PySpark) |
-| Formato de tabela | Delta Lake |
-| Governança | Unity Catalog |
-| Orquestração | Databricks Workflows |
-| Consumo | Power BI / Databricks SQL |
-
-## Arquitetura
-
-```
-Olist (OLTP normalizado)
-      │  ingestão
-      ▼
-   BRONZE  ── dado cru em Delta
-      │  limpeza, tipagem, dedup
-      ▼
-   SILVER  ── dado confiável
-      │  modelagem dimensional
-      ▼
-    GOLD   ── star schema (fato + dimensões)
-      │
-      ▼
-  Power BI / Databricks SQL
-```
-
-## Dashboard
-
-Visão de vendas sobre a camada gold (Databricks SQL Dashboard):
+## 📊 O resultado
 
 ![Dashboard de vendas Olist](docs/images/dashboard.png)
 
-## Status por fase
+*R$ 13,6 mi em receita · ~99 mil pedidos · ticket médio R$ 137 — SP domina, categorias health_beauty e watches_gifts no topo.*
 
-- [x] Fase 0 — setup (conta, repo, ferramentas)
-- [x] Fase 1 — infra (ADLS Gen2, workspace, Unity Catalog)
-- [x] Fase 2 — dados de origem (Olist)
-- [x] Fase 3 — bronze
-- [x] Fase 4 — silver
-- [x] Fase 5 — gold (star schema)
-- [x] Fase 6 — orquestração + governança
-- [x] Fase 7 — dashboard
-- [ ] Fase 8 — documentação final
+## 🏗️ Arquitetura
 
-## Notas sobre os dados (Olist)
+```mermaid
+flowchart LR
+    K["📥 Kaggle<br/>Olist CSV (9 tabelas)"]
+    subgraph LH["🏠 Lakehouse — ADLS Gen2 + Delta + Unity Catalog"]
+      direction LR
+      B[("🥉 Bronze<br/>dado cru")]
+      S[("🥈 Silver<br/>limpo + quarentena")]
+      G[("🥇 Gold<br/>star schema")]
+      B -->|"Spark: tipagem, dedup, validação"| S
+      S -->|"modelagem dimensional"| G
+    end
+    D["📈 Databricks SQL<br/>Dashboard"]
+    W["⚙️ Databricks Workflow"]
+    K -->|ingestão| B
+    G --> D
+    W -.->|"orquestra bronze→silver→gold"| LH
+```
 
-O dataset reflete a história real do marketplace — importante ao ler o dashboard. Os gráficos mostram a série **completa, sem recorte** (transparência); os KPIs de total usam todo o dataset.
+## 🧰 Stack
 
-- **set/2016:** só 4 pedidos.
-- **out/2016:** "burst" de ~324 pedidos concentrado em 3–10/out (lançamento-piloto).
-- **nov/2016:** nenhum pedido.
-- **dez/2016:** 1 pedido isolado (R$ 10,90).
-- **jan/2017 em diante:** operação real, crescendo até ~7,5k pedidos/mês (pico em nov/2017).
-- **set–out/2018:** queda abrupta (16 e 4 pedidos) — é o **corte da extração** do dataset, não queda de vendas.
+| Camada | Ferramenta |
+|---|---|
+| Data lake | Azure Data Lake Storage Gen2 (HNS) |
+| Processamento | Azure Databricks · Spark / PySpark (serverless) |
+| Formato de tabela | Delta Lake |
+| Governança | Unity Catalog (managed identity, external locations, grants) |
+| Orquestração | Databricks Workflows |
+| Consumo | Databricks SQL Dashboard |
+| IaC / reprodutibilidade | Azure CLI + Databricks Asset Bundle |
 
-**Validação:** as contagens batem com a fonte (**99.441 pedidos / 112.650 itens**) e com EDAs públicas do dataset (~329 pedidos em 2016). Ou seja, o pipeline é fiel à origem — o "estranho" é o negócio real.
+## 🥉🥈🥇 Como funciona (Medallion)
+
+- **Bronze** — os 9 CSVs do Olist viram tabelas Delta **sem limpeza**, só com metadados de ingestão. Ganha ACID, schema e time travel sobre o cru.
+- **Silver** — tipagem explícita, padronização, **dedup** e **quarentena**: cada tabela separa linhas válidas de reprovadas (`<tabela>_quarantine` com o motivo), sem quebrar o pipeline nem contaminar o dado.
+- **Gold** — **star schema** desnormalizado: fato `fato_itens_pedido` (grão = item de pedido) + 5 dimensões (`cliente`, `produto`, `vendedor`, `data`, `pedido`) com **surrogate keys**.
+
+## ⭐ Destaques técnicos
+
+- **Governança sem chave:** acesso ao storage via **managed identity** (Access Connector) + RBAC; no Unity Catalog, a cadeia *storage credential → external location → catalog/schema* com as managed locations apontando pro próprio ADLS.
+- **Qualidade com quarentena:** validação declarativa por tabela (chave nula, domínio inválido, data ausente) — engenharia defensiva, não quebra em dado ruim.
+- **Modelagem dimensional:** star schema com surrogate keys e checagem de **integridade referencial** (0 órfãos) na gold.
+- **Orquestração idempotente:** um job encadeia as 3 camadas; como cada etapa reescreve sua camada, é seguro reexecutar.
+- **Rigor com o dado:** um número suspeito no dashboard virou uma investigação até a origem — provei que o pipeline era fiel e documentei em vez de recortar a série (ver *Notas sobre os dados*).
+
+## 📁 Estrutura do repositório
+
+```
+infra/       # provisionamento Azure via az CLI (RG, ADLS, workspace, access connector)
+setup/       # bootstrap do Unity Catalog (SQL) + definição do workflow + queries do dashboard
+notebooks/   # bronze / silver / gold (PySpark)
+docs/        # imagens (diagrama, dashboard)
+```
+
+## ▶️ Como reproduzir
+
+1. **Infra (Azure):** rodar os scripts de `infra/` em ordem (`01`…`06`) — cria RG, ADLS Gen2, workspace Databricks e o Access Connector.
+2. **Unity Catalog:** rodar `setup/01_unity_catalog.sql` (external locations + catalog + schemas).
+3. **Dados:** `setup/02_dados_origem.sh` baixa o Olist (Kaggle) e sobe pro bronze.
+4. **Pipeline:** rodar o job `medallion-olist-pipeline` (definido em `setup/03_workflow.yml`) — executa bronze → silver → gold.
+5. **Dashboard:** queries em `setup/04_dashboard_queries.sql`.
+
+> 💰 Projeto feito na conta **Azure Free**. Ao terminar, `az group delete -n rg-medallion-olist` derruba tudo e zera o custo — a infra é 100% reproduzível pelos scripts.
+
+## 🗃️ Dados
+
+**Brazilian E-Commerce Public Dataset by Olist** (Kaggle) — ~100 mil pedidos reais (set/2016 a out/2018), em 9 tabelas normalizadas.
+Fonte: https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce
+
+### Notas sobre os dados
+
+Os gráficos mostram a série **completa, sem recorte** (transparência); os KPIs usam todo o dataset.
+
+- **2016:** só ~329 pedidos — piloto em out/2016 (burst de uma semana), gap em nov, 1 pedido em dez.
+- **2017–2018:** operação real, crescendo até ~7,5 mil pedidos/mês (pico em nov/2017).
+- **set–out/2018:** queda abrupta — é o **corte da extração** do dataset, não queda de vendas.
+
+Validação: as contagens batem com a fonte (**99.441 pedidos / 112.650 itens**) e com EDAs públicas — o pipeline é fiel à origem.
