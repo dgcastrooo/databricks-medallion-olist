@@ -58,6 +58,26 @@ flowchart LR
 - **Silver** — tipagem explícita, padronização, **dedup** e **quarentena**: cada tabela separa linhas válidas de reprovadas (`<tabela>_quarantine` com o motivo), sem quebrar o pipeline nem contaminar o dado.
 - **Gold** — **star schema** desnormalizado: fato `fato_itens_pedido` (grão = item de pedido) + 5 dimensões (`cliente`, `produto`, `vendedor`, `data`, `pedido`) com **surrogate keys**.
 
+### Modelo dimensional (gold)
+
+```mermaid
+erDiagram
+    dim_cliente  ||--o{ fato_itens_pedido : sk_cliente
+    dim_produto  ||--o{ fato_itens_pedido : sk_produto
+    dim_vendedor ||--o{ fato_itens_pedido : sk_vendedor
+    dim_data     ||--o{ fato_itens_pedido : date_key
+    dim_pedido   ||--o{ fato_itens_pedido : sk_pedido
+    fato_itens_pedido {
+        int    sk_pedido FK
+        int    sk_cliente FK
+        int    sk_produto FK
+        int    sk_vendedor FK
+        int    date_key FK
+        decimal preco
+        decimal frete
+    }
+```
+
 ## ⭐ Destaques técnicos
 
 - **Governança sem chave:** acesso ao storage via **managed identity** (Access Connector) + RBAC; no Unity Catalog, a cadeia *storage credential → external location → catalog/schema* com as managed locations apontando pro próprio ADLS.
@@ -65,6 +85,19 @@ flowchart LR
 - **Modelagem dimensional:** star schema com surrogate keys e checagem de **integridade referencial** (0 órfãos) na gold.
 - **Orquestração idempotente:** um job encadeia as 3 camadas; como cada etapa reescreve sua camada, é seguro reexecutar.
 - **Rigor com o dado:** um número suspeito no dashboard virou uma investigação até a origem — provei que o pipeline era fiel e documentei em vez de recortar a série (ver *Notas sobre os dados*).
+
+## 🧭 Decisões de arquitetura
+
+| Decisão | Escolha | Por quê |
+|---|---|---|
+| Plataforma | Azure Databricks | Lakehouse gerenciado (Spark + Delta + UC integrados) na própria conta Azure |
+| Compute dos notebooks | **Serverless** (não cluster clássico) | Liga/desliga na hora, sem *idle burn* — custo mínimo no free tier |
+| Acesso ao storage | **Managed identity** (não chave/SAS) | Sem segredo em lugar nenhum; acesso governado pelo Unity Catalog |
+| Modelo da gold | **Star schema** (não snowflake) | Dimensões desnormalizadas = menos joins, leitura rápida pra BI |
+| Chaves das dimensões | **Surrogate keys** | Join por inteiro, independência da fonte, base pra SCD futuro |
+| Qualidade na silver | **Quarentena** (não descartar nem quebrar) | Preserva o dado ruim pra análise sem contaminar nem derrubar o pipeline |
+| Orquestração | **Databricks Workflows** (não Airflow) | Tudo vive no Databricks; sem infra externa pra manter |
+| Integridade referencial | Checada na **gold** | É onde os joins acontecem — órfãos aparecem ali (validado: 0) |
 
 ## 📁 Estrutura do repositório
 
