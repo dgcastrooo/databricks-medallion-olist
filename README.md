@@ -37,6 +37,12 @@ Olist (OLTP normalizado)
   Power BI / Databricks SQL
 ```
 
+## Dashboard
+
+Visão de vendas sobre a camada gold (Databricks SQL Dashboard):
+
+![Dashboard de vendas Olist](docs/images/dashboard.png)
+
 ## Status por fase
 
 - [x] Fase 0 — setup (conta, repo, ferramentas)
@@ -46,7 +52,7 @@ Olist (OLTP normalizado)
 - [x] Fase 4 — silver
 - [x] Fase 5 — gold (star schema)
 - [x] Fase 6 — orquestração + governança
-- [ ] Fase 7 — dashboard
+- [x] Fase 7 — dashboard
 - [ ] Fase 8 — documentação final
 
 ## Notas sobre os dados (Olist)
